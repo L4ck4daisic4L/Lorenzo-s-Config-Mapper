@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gladiatori Config Mapper - Version Franze</title>
+  <style>
+    :root{--bg:#0f1216;--card:#151922;--muted:#98a0ab;--text:#e7e9ee;--accent:#4da3ff;--green:#2bb673;--blue:#3b82f6}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font:13.5px/1.45 Inter,Segoe UI,Roboto,Helvetica,Arial}
+    .wrap{max-width:1200px;margin:18px auto;padding:18px}
+    header{display:flex;align-items:center;gap:18px}
+    h1{font-size:20px;margin:0}
+    .tabs{display:flex;gap:8px;margin-left:auto}
+    .tab{padding:8px 12px;border-radius:10px;cursor:pointer;border:1px solid #212636;background:#0d1115;color:var(--muted)}
+    .tab.active{color:var(--text)}
+    .indicator{padding:6px 10px;border-radius:999px;font-weight:600}
+
+    .main{display:flex;gap:14px;margin-top:14px}
+    .panel{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+    .left{width:360px}
+    .right{flex:1}
+
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    select,input[type=text],input[type=number],textarea{width:100%;padding:8px;border-radius:8px;background:#0b0e13;border:1px solid #22293a;color:var(--text)}
+    .row{display:flex;gap:8px}
+    .controls{display:flex;gap:8px;margin-top:8px}
+    .btn{padding:9px 12px;border-radius:10px;border:1px solid #263141;background:#0c0f13;color:var(--text);cursor:pointer}
+    .btn.primary{background:var(--accent);border:none;color:#04111f}
+    .btn.green{background:var(--green);border:none;color:#052012}
+    .btn.blue{background:var(--blue);border:none;color:#05203f}
+    .muted{color:var(--muted)}
+
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .card{border-radius:10px;padding:10px;border:1px solid #232a38;background:linear-gradient(180deg,#0c0f13, #0b0e12)}
+    .card h3{margin:0 0 6px;font-size:13px}
+    .small{font-size:12px;color:var(--muted)}
+    textarea.small{height:56px;resize:vertical}
+
+    .preview{margin-top:12px}
+    textarea.code{height:320px;font-family:ui-monospace,Menlo,Consolas,monospace}
+
+    /* responsive */
+    @media (max-width:980px){.main{flex-direction:column}.left{width:100%}}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Gladiatori Config Mapper - Version Franze</h1>
+      <div class="tabs" id="tabs">
+        <div class="tab active" data-tab="tab24">Config24Keys</div>
+        <div class="tab" data-tab="tab12">Config12Keys</div>
+      </div>
+    </header>
+
+    <div style="margin-top:10px;display:flex;gap:12px;align-items:center">
+      <div id="indicator" class="indicator" style="background:var(--green)">Currently building Config24Keys</div>
+      <div class="muted">(Tab-based — active tab controls the build & export)</div>
+    </div>
+
+    <div class="main">
+      <div class="panel left">
+        <label>Global send mode</label>
+        <select id="sendMode"><option>Enter</option><option>Ctrl+Enter</option></select>
+
+        <label style="margin-top:10px">Preset</label>
+        <select id="preset"><option value="given">Use the given mapping</option><option value="blank">Start blank</option><option value="textTemplate">Fill all as textMessage</option></select>
+
+        <div class="controls">
+          <button id="btnBuild" class="btn primary">Build AHK</button>
+          <button id="btnDownload" class="btn" title="Download the current tab script">Download .ahk</button>
+        </div>
+        <div class="controls" style="margin-top:8px">
+          <button id="btnCopy" class="btn">Copy to clipboard</button>
+          <button id="btnReset" class="btn">Reset UI</button>
+        </div>
+
+        <div style="margin-top:12px;font-size:13px;color:var(--muted)">
+          <strong>Tips</strong>
+          <ul style="margin:6px 0 0 18px;color:var(--muted)">
+            <li>Files (audio/image) should sit next to the generated AHK.</li>
+            <li>For 12-key tab, each key has Primary (F1) and Ctrl (Ctrl+F1) entries.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel right">
+        <!-- Tab content containers -->
+        <div id="tab24" class="tabcontent">
+          <div class="small">Mapping: F13–F24 and Ctrl+F13–Ctrl+F24 — 24 independent slots (1..24). Use action selector per key.</div>
+          <div style="margin-top:10px" id="keysGrid24" class="grid"></div>
+        </div>
+
+        <div id="tab12" class="tabcontent" style="display:none">
+          <div class="small">Mapping: Keyboard F1–F12. Each entry has Primary (F#) and Ctrl (Ctrl+F#).</div>
+          <div style="margin-top:10px" id="keysGrid12" class="grid"></div>
+        </div>
+
+        <div class="preview">
+          <label>Generated AHK (preview)</label>
+          <textarea id="out" class="code" spellcheck="false"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <template id="cardTemplate24">
+    <div class="card">
+      <h3 class="title"></h3>
+      <label class="small">Action</label>
+      <select class="type"><option value="nothing">nothing</option><option value="addToFolder">addToFolder</option><option value="archive">archive</option><option value="textMessage">textMessage</option><option value="audioFile">audioFile</option><option value="imageWithCaption">imageWithCaption</option></select>
+      <div class="fields"></div>
+    </div>
+  </template>
+
+  <template id="cardTemplate12">
+    <div class="card">
+      <h3 class="title"></h3>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1">
+          <label class="small">Primary (F#) — action</label>
+          <select class="type-primary"><option value="nothing">nothing</option><option value="addToFolder">addToFolder</option><option value="archive">archive</option><option value="textMessage">textMessage</option><option value="audioFile">audioFile</option><option value="imageWithCaption">imageWithCaption</option></select>
+          <div class="fields-primary"></div>
+        </div>
+        <div style="flex:1">
+          <label class="small">Ctrl (Ctrl+F#) — action</label>
+          <select class="type-ctrl"><option value="nothing">nothing</option><option value="addToFolder">addToFolder</option><option value="archive">archive</option><option value="textMessage">textMessage</option><option value="audioFile">audioFile</option><option value="imageWithCaption">imageWithCaption</option></select>
+          <div class="fields-ctrl"></div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    // === State ===
+    const state24 = Array.from({length:24}, ()=>({type:'nothing'}));
+    const state12 = Array.from({length:12}, ()=>({primary:{type:'nothing'}, ctrl:{type:'nothing'}}));
+
+    // === DOM refs ===
+    const tabs = document.querySelectorAll('.tab');
+    const indicator = document.getElementById('indicator');
+    const tab24El = document.getElementById('tab24');
+    const tab12El = document.getElementById('tab12');
+    const keysGrid24 = document.getElementById('keysGrid24');
+    const keysGrid12 = document.getElementById('keysGrid12');
+    const out = document.getElementById('out');
+    const btnBuild = document.getElementById('btnBuild');
+    const btnDownload = document.getElementById('btnDownload');
+    const btnCopy = document.getElementById('btnCopy');
+    const btnReset = document.getElementById('btnReset');
+    const sendMode = document.getElementById('sendMode');
+    const preset = document.getElementById('preset');
+
+    // Preset from earlier data
+    const givenConfig = {
+      _sendMode: 'Enter',
+      Key1: {type:'addToFolder', downKeys:24},Key2:{type:'addToFolder',downKeys:25},Key3:{type:'addToFolder',downKeys:3},Key4:{type:'addToFolder',downKeys:4},Key5:{type:'addToFolder',downKeys:5},Key6:{type:'addToFolder',downKeys:6},Key7:{type:'addToFolder',downKeys:7},Key8:{type:'addToFolder',downKeys:8},Key9:{type:'archive'},Key10:{type:'nothing'},Key11:{type:'nothing'},Key12:{type:'nothing'},Key13:{type:'textMessage',message:'/D3VN',autoSend:false},Key14:{type:'textMessage',message:'/A1',autoSend:false},Key15:{type:'textMessage',message:'/D7',autoSend:false},Key16:{type:'textMessage',message:'/F3F',autoSend:false},Key17:{type:'textMessage',message:'Hello how are you? 5',autoSend:true},Key18:{type:'textMessage',message:'Hello how are you? 6',autoSend:true},Key19:{type:'audioFile',fileName:'test.ogg',autoSend:false},Key20:{type:'audioFile',fileName:'test.ogg',autoSend:false},Key21:{type:'audioFile',fileName:'test.ogg',autoSend:true},Key22:{type:'imageWithCaption',imageFile:'image.png',caption:'Image caption 1',autoSend:true},Key23:{type:'imageWithCaption',imageFile:'image.png',caption:'Image caption 2',autoSend:true},Key24:{type:'imageWithCaption',imageFile:'image.png',caption:'Image caption 3',autoSend:true}
+    };
+
+    // === Helpers to build UI fields based on action type ===
+    function makeFieldsFor(type, data={}) {
+      const wrap = document.createElement('div');
+      wrap.style.marginTop = '8px';
+      if(type === 'addToFolder') {
+        wrap.innerHTML = `<label class='small'>Down count</label><input type='number' class='f-down' min='0' value='${data.downKeys ?? 0}'>`;
+      } else if(type === 'textMessage') {
+        wrap.innerHTML = `<label class='small'>Message</label><textarea class='f-msg small'>${(data.message||'').replaceAll('"','\"')}</textarea><label style='margin-top:6px'><input type='checkbox' class='f-auto' ${data.autoSend? 'checked':''}> Auto send</label>`;
+      } else if(type === 'audioFile') {
+        wrap.innerHTML = `<label class='small'>File name</label><input class='f-file' type='text' value='${(data.fileName||'').replaceAll('"','\"')}'><label style='margin-top:6px'><input type='checkbox' class='f-auto' ${data.autoSend? 'checked':''}> Auto send</label>`;
+      } else if(type === 'imageWithCaption') {
+        wrap.innerHTML = `<label class='small'>Image file</label><input class='f-img' type='text' value='${(data.imageFile||'').replaceAll('"','\"')}'><label class='small'>Caption</label><input class='f-cap' type='text' value='${(data.caption||'').replaceAll('"','\"')}'><label style='margin-top:6px'><input type='checkbox' class='f-auto' ${data.autoSend? 'checked':''}> Auto send</label>`;
+      } else {
+        wrap.innerHTML = `<div class='small muted'>No extra fields</div>`;
+      }
+      return wrap;
+    }
+
+    // Fill UI for 24 keys
+    function render24() {
+      keysGrid24.innerHTML = '';
+      for(let i=0; i<24; i++) {
+        const card = document.getElementById('cardTemplate24').content.firstElementChild.cloneNode(true);
+        let title = i < 12 ? `F${13 + i}` : `Ctrl+F${13 + (i - 12)}`;
+        card.querySelector('.title').textContent = title;
+        const sel = card.querySelector('.type');
+        sel.value = state24[i].type || 'nothing';
+        const fields = card.querySelector('.fields');
+        fields.replaceChildren(makeFieldsFor(sel.value, state24[i]));
+
+        sel.addEventListener('change', () => {
+          state24[i] = {type: sel.value};
+          fields.replaceChildren(makeFieldsFor(sel.value, state24[i]));
+        });
+
+        card.addEventListener('input', (ev) => {
+          const t = ev.target;
+          if(t.classList.contains('f-down')) state24[i].downKeys = parseInt(t.value||'0',10);
+          if(t.classList.contains('f-msg')) state24[i].message = t.value;
+          if(t.classList.contains('f-file')) state24[i].fileName = t.value;
+          if(t.classList.contains('f-img')) state24[i].imageFile = t.value;
+          if(t.classList.contains('f-cap')) state24[i].caption = t.value;
+        });
+        card.addEventListener('change', (ev) => {
+          if(ev.target.classList.contains('f-auto')) state24[i].autoSend = ev.target.checked;
+        });
+
+        keysGrid24.appendChild(card);
+      }
+    }
+
+    // Fill UI for 12 keys (primary + ctrl)
+    function render12() {
+      keysGrid12.innerHTML = '';
+      for(let i=0; i<12; i++) {
+        const card = document.getElementById('cardTemplate12').content.firstElementChild.cloneNode(true);
+        card.querySelector('.title').textContent = `F${i+1} / Ctrl+F${i+1}`;
+
+        const selP = card.querySelector('.type-primary');
+        const selC = card.querySelector('.type-ctrl');
+        selP.value = state12[i].primary.type || 'nothing';
+        selC.value = state12[i].ctrl.type || 'nothing';
+
+        const fP = card.querySelector('.fields-primary');
+        const fC = card.querySelector('.fields-ctrl');
+        fP.replaceChildren(makeFieldsFor(selP.value, state12[i].primary));
+        fC.replaceChildren(makeFieldsFor(selC.value, state12[i].ctrl));
+
+        selP.addEventListener('change', () => {
+          state12[i].primary = {type:selP.value};
+          fP.replaceChildren(makeFieldsFor(selP.value, state12[i].primary));
+        });
+        selC.addEventListener('change', () => {
+          state12[i].ctrl = {type:selC.value};
+          fC.replaceChildren(makeFieldsFor(selC.value, state12[i].ctrl));
+        });
+
+        card.addEventListener('input', (ev) => {
+          const t = ev.target;
+          if(t.closest('.fields-primary')) {
+            if(t.classList.contains('f-down')) state12[i].primary.downKeys = parseInt(t.value||'0',10);
+            if(t.classList.contains('f-msg')) state12[i].primary.message = t.value;
+            if(t.classList.contains('f-file')) state12[i].primary.fileName = t.value;
+            if(t.classList.contains('f-img')) state12[i].primary.imageFile = t.value;
+            if(t.classList.contains('f-cap')) state12[i].primary.caption = t.value;
+          }
+          if(t.closest('.fields-ctrl')) {
+            if(t.classList.contains('f-down')) state12[i].ctrl.downKeys = parseInt(t.value||'0',10);
+            if(t.classList.contains('f-msg')) state12[i].ctrl.message = t.value;
+            if(t.classList.contains('f-file')) state12[i].ctrl.fileName = t.value;
+            if(t.classList.contains('f-img')) state12[i].ctrl.imageFile = t.value;
+            if(t.classList.contains('f-cap')) state12[i].ctrl.caption = t.value;
+          }
+        });
+        card.addEventListener('change', (ev) => {
+          if(ev.target.classList.contains('f-auto')) {
+            if(ev.target.closest('.fields-primary')) state12[i].primary.autoSend = ev.target.checked;
+            else state12[i].ctrl.autoSend = ev.target.checked;
+          }
+        });
+
+        keysGrid12.appendChild(card);
+      }
+    }
+
+    // Tab switching
+    tabs.forEach(t => t.addEventListener('click', () => {
+      tabs.forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const which = t.dataset.tab;
+      if(which === 'tab24') {
+        tab24El.style.display = '';
+        tab12El.style.display = 'none';
+        indicator.textContent = 'Currently building Config24Keys';
+        indicator.style.background = 'var(--green)';
+        document.getElementById('btnDownload').classList.remove('blue');
+        document.getElementById('btnDownload').classList.add('btn');
+        document.getElementById('btnBuild').classList.remove('blue');
+        document.getElementById('btnBuild').classList.add('primary');
+        document.getElementById('btnBuild').classList.remove('green');
+        document.getElementById('btnBuild').classList.add('primary');
+      } else {
+        tab24El.style.display = 'none';
+        tab12El.style.display = '';
+        indicator.textContent = 'Currently building Config12Keys';
+        indicator.style.background = 'var(--blue)';
+        document.getElementById('btnDownload').classList.remove('green');
+        document.getElementById('btnDownload').classList.add('btn');
+      }
+      buildPreview();
+    }));
+
+    // Build AHK script
+    function buildPreview() {
+      const is24Keys = document.querySelector('.tab.active').dataset.tab === 'tab24';
+      const script = is24Keys ? buildScript24() : buildScript12();
+      out.value = script;
+    }
+
+    // Build AHK for Config24Keys
+    function buildScript24() {
+      let script = `#NoEnv\n#SingleInstance Force\nSetWorkingDir %A_ScriptDir%\n\n`;
+      script += `Config := {}\n`;
+      script += `Config._sendMode := "${sendMode.value}"\n\n`;
+
+      state24.forEach((key, i) => {
+        const keyName = `Key${i + 1}`;
+        if (key.type === 'nothing') {
+          script += `Config.${keyName} := {type: "nothing"}\n`;
+        } else if (key.type === 'addToFolder') {
+          script += `Config.${keyName} := {type: "addToFolder", downKeys: ${key.downKeys || 0}}\n`;
+        } else if (key.type === 'archive') {
+          script += `Config.${keyName} := {type: "archive"}\n`;
+        } else if (key.type === 'textMessage') {
+          const msg = (key.message || '').replace(/"/g, '""');
+          script += `Config.${keyName} := {type: "textMessage", message: "${msg}", autoSend: ${key.autoSend ? 'true' : 'false'}}\n`;
+        } else if (key.type === 'audioFile') {
+          const file = (key.fileName || '').replace(/"/g, '""');
+          script += `Config.${keyName} := {type: "audioFile", fileName: "${file}", autoSend: ${key.autoSend ? 'true' : 'false'}}\n`;
+        } else if (key.type === 'imageWithCaption') {
+          const img = (key.imageFile || '').replace(/"/g, '""');
+          const cap = (key.caption || '').replace(/"/g, '""');
+          script += `Config.${keyName} := {type: "imageWithCaption", imageFile: "${img}", caption: "${cap}", autoSend: ${key.autoSend ? 'true' : 'false'}}\n`;
+        }
+      });
+
+      script += `\nHandleKey(key) {\n  action := Config[key]\n  if (action.type = "addToFolder") {\n    Send {Down %action.downKeys%}\n    Send {Enter}\n  } else if (action.type = "archive") {\n    Send ^e\n  } else if (action.type = "textMessage") {\n    Send % action.message\n    if (action.autoSend && Config._sendMode = "Enter") {\n      Send {Enter}\n    } else if (action.autoSend && Config._sendMode = "Ctrl+Enter") {\n      Send ^{Enter}\n    }\n  } else if (key.type = "audioFile") {\n    FileAppend, % action.fileName, % A_ScriptDir "\\temp.txt"\n    Run, % A_ScriptDir "\\" action.fileName\n    if (action.autoSend && Config._sendMode = "Enter") {\n      Send {Enter}\n    } else if (action.autoSend && Config._sendMode = "Ctrl+Enter") {\n      Send ^{Enter}\n    }\n  } else if (key.type = "imageWithCaption") {\n    FileAppend, % action.imageFile, % A_ScriptDir "\\temp.txt"\n    Run, % A_ScriptDir "\\" action.imageFile\n    Send % action.caption\n    if (action.autoSend && Config._sendMode = "Enter") {\n      Send {Enter}\n    } else if (action.autoSend && Config._sendMode = "Ctrl+Enter") {\n      Send ^{Enter}\n    }\n  }\n}\n\n`;
+
+      state24.forEach((_, i) => {
+        const keyName = `Key${i + 1}`;
+        if (i < 12) {
+          script += `F${13 + i}::HandleKey("${keyName}")\n`;
+        } else {
+          script += `^F${13 + (i - 12)}::HandleKey("${keyName}")\n`;
+        }
+      });
+
+      return script;
+    }
+
+    // Build AHK for Config12Keys
+    function buildScript12() {
+      let script = `#NoEnv\n#SingleInstance Force\nSetWorkingDir %A_ScriptDir%\n\n`;
+      script += `Config := {}\n`;
+      script += `Config._sendMode := "${sendMode.value}"\n\n`;
+
+      state12.forEach((key, i) => {
+        const keyNameP = `Key${i + 1}P`;
+        const keyNameC = `Key${i + 1}C`;
+        // Primary
+        if (key.primary.type === 'nothing') {
+          script += `Config.${keyNameP} := {type: "nothing"}\n`;
+        } else if (key.primary.type === 'addToFolder') {
+          script += `Config.${keyNameP} := {type: "addToFolder", downKeys: ${key.primary.downKeys || 0}}\n`;
+        } else if (key.primary.type === 'archive') {
+          script += `Config.${keyNameP} := {type: "archive"}\n`;
+        } else if (key.primary.type === 'textMessage') {
+          const msg = (key.primary.message || '').replace(/"/g, '""');
+          script += `Config.${keyNameP} := {type: "textMessage", message: "${msg}", autoSend: ${key.primary.autoSend ? 'true' : 'false'}}\n`;
+        } else if (key.primary.type === 'audioFile') {
+          const file = (key.primary.fileName || '').replace(/"/g, '""');
+          script += `Config.${keyNameP} := {type: "audioFile", fileName: "${file}", autoSend: ${key.primary.autoSend ? 'true' : 'false'}}\n`;
+        } else if (key.primary.type === 'imageWithCaption') {
+          const img = (key.primary.imageFile || '').replace(/"/g, '""');
+          const cap = (key.primary.caption || '').replace(/"/g, '""');
+          script += `Config.${keyNameP} := {type: "imageWithCaption", imageFile: "${img}", caption: "${cap}", autoSend: ${key.primary.autoSend ? 'true' : 'false'}}\n`;
+        }
+        // Ctrl
+        if (key.ctrl.type === 'nothing') {
+          script += `Config.${keyNameC} := {type: "nothing"}\n`;
+        } else if (key.ctrl.type === 'addToFolder') {
+          script += `Config.${keyNameC} := {type: "addToFolder", downKeys: ${key.ctrl.downKeys || 0}}\n`;
+        } else if (key.ctrl.type === 'archive') {
+          script += `Config.${keyNameC} := {type: "archive"}\n`;
+        } else if (key.ctrl.type === 'textMessage') {
+          const msg = (key.ctrl.message || '').replace(/"/g, '""');
+          script += `Config.${keyNameC} := {type: "textMessage", message: "${msg}", autoSend: ${key.ctrl.autoSend ? 'true' : 'false'}}\n`;
+        } else if (key.ctrl.type === 'audioFile') {
+          const file = (key.ctrl.fileName || '').replace(/"/g, '""');
+          script += `Config.${keyNameC} := {type: "audioFile", fileName: "${file}", autoSend: ${key.ctrl.autoSend ? 'true' : 'false'}}\n`;
+        } else if (key.ctrl.type === 'imageWithCaption') {
+          const img = (key.ctrl.imageFile || '').replace(/"/g, '""');
+          const cap = (key.ctrl.caption || '').replace(/"/g, '""');
+          script += `Config.${keyNameC} := {type: "imageWithCaption", imageFile: "${img}", caption: "${cap}", autoSend: ${key.ctrl.autoSend ? 'true' : 'false'}}\n`;
+        }
+      });
+
+      script += `\nHandleKey(key) {\n  action := Config[key]\n  if (action.type = "addToFolder") {\n    Send {Down %action.downKeys%}\n    Send {Enter}\n  } else if (action.type = "archive") {\n    Send ^e\n  } else if (action.type = "textMessage") {\n    Send % action.message\n    if (action.autoSend && Config._sendMode = "Enter") {\n      Send {Enter}\n    } else if (action.autoSend && Config._sendMode = "Ctrl+Enter") {\n      Send ^{Enter}\n    }\n  } else if (action.type = "audioFile") {\n    FileAppend, % action.fileName, % A_ScriptDir "\\temp.txt"\n    Run, % A_ScriptDir "\\" action.fileName\n    if (action.autoSend && Config._sendMode = "Enter") {\n      Send {Enter}\n    } else if (action.autoSend && Config._sendMode = "Ctrl+Enter") {\n      Send ^{Enter}\n    }\n  } else if (action.type = "imageWithCaption") {\n    FileAppend, % action.imageFile, % A_ScriptDir "\\temp.txt"\n    Run, % A_ScriptDir "\\" action.imageFile\n    Send % action.caption\n    if (action.autoSend && Config._sendMode = "Enter") {\n      Send {Enter}\n    } else if (action.autoSend && Config._sendMode = "Ctrl+Enter") {\n      Send ^{Enter}\n    }\n  }\n}\n\n`;
+
+      state12.forEach((_, i) => {
+        const keyNameP = `Key${i + 1}P`;
+        const keyNameC = `Key${i + 1}C`;
+        script += `F${i + 1}::HandleKey("${keyNameP}")\n`;
+        script += `^F${i + 1}::HandleKey("${keyNameC}")\n`;
+      });
+
+      return script;
+    }
+
+    // Apply preset
+    function applyPreset() {
+      const val = preset.value;
+      if (val === 'given') {
+        sendMode.value = givenConfig._sendMode;
+        state24.forEach((_, i) => {
+          const key = givenConfig[`Key${i + 1}`] || { type: 'nothing' };
+          state24[i] = { ...key };
+        });
+        state12.forEach((_, i) => {
+          state12[i] = { primary: { type: 'nothing' }, ctrl: { type: 'nothing' } };
+        });
+      } else if (val === 'blank') {
+        state24.forEach((_, i) => {
+          state24[i] = { type: 'nothing' };
+        });
+        state12.forEach((_, i) => {
+          state12[i] = { primary: { type: 'nothing' }, ctrl: { type: 'nothing' } };
+        });
+      } else if (val === 'textTemplate') {
+        state24.forEach((_, i) => {
+          state24[i] = { type: 'textMessage', message: `Message ${i + 1}`, autoSend: true };
+        });
+        state12.forEach((_, i) => {
+          state12[i] = {
+            primary: { type: 'textMessage', message: `Primary ${i + 1}`, autoSend: true },
+            ctrl: { type: 'textMessage', message: `Ctrl ${i + 1}`, autoSend: true }
+          };
+        });
+      }
+      render24();
+      render12();
+      buildPreview();
+    }
+
+    // Button event listeners
+    btnBuild.addEventListener('click', () => {
+      buildPreview();
+    });
+
+    btnDownload.addEventListener('click', () => {
+      const is24Keys = document.querySelector('.tab.active').dataset.tab === 'tab24';
+      const script = out.value;
+      const blob = new Blob([script], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = is24Keys ? 'Config24Keys.ahk' : 'Config12Keys.ahk';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    btnCopy.addEventListener('click', () => {
+      out.select();
+      try {
+        document.execCommand('copy');
+        alert('Script copied to clipboard!');
+      } catch (err) {
+        alert('Failed to copy script.');
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      sendMode.value = 'Enter';
+      preset.value = 'blank';
+      applyPreset();
+    });
+
+    // Preset change
+    preset.addEventListener('change', applyPreset);
+
+    // Send mode change
+    sendMode.addEventListener('change', buildPreview);
+
+    // Initial render
+    render24();
+    render12();
+    buildPreview();
+  </script>
+</body>
+</html>
